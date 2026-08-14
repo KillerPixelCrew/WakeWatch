@@ -15,7 +15,10 @@ use tray_icon::menu::MenuEvent;
 use wakewatch::devpath::DevicePathMap;
 use wakewatch::icons::IconSet;
 use wakewatch::ticker::Ticker;
-use wakewatch::tray::{ID_AUTOSTART, ID_EXIT, ID_REFRESH, Tray};
+use wakewatch::tray::{
+    ID_AUTOSTART, ID_DISPLAY_WAKELOCK, ID_EXIT, ID_REFRESH, ID_STANDBY_WAKELOCK, Tray,
+};
+use wakewatch::wakelock::{ManualWakelocks, WakelockKind};
 use wakewatch::{autostart, poll, single};
 
 const POLL_MS: u32 = 1000;
@@ -40,6 +43,7 @@ fn main() {
     };
 
     let mut paths = DevicePathMap::new();
+    let mut manual_wakelocks = ManualWakelocks::default();
     tray.apply(poll(&mut paths));
 
     // A NULL-hwnd timer posts WM_TIMER straight to this thread's queue, so we
@@ -68,11 +72,39 @@ fn main() {
             match event.id.as_ref() {
                 ID_REFRESH => tray.apply(poll(&mut paths)),
                 ID_AUTOSTART => toggle_autostart(&mut tray),
+                ID_DISPLAY_WAKELOCK => toggle_wakelock(
+                    &mut tray,
+                    &mut manual_wakelocks,
+                    WakelockKind::Display,
+                    &mut paths,
+                ),
+                ID_STANDBY_WAKELOCK => toggle_wakelock(
+                    &mut tray,
+                    &mut manual_wakelocks,
+                    WakelockKind::Standby,
+                    &mut paths,
+                ),
                 ID_EXIT => unsafe { PostQuitMessage(0) },
                 _ => {}
             }
         }
     }
+}
+
+fn toggle_wakelock(
+    tray: &mut Tray,
+    wakelocks: &mut ManualWakelocks,
+    kind: WakelockKind,
+    paths: &mut DevicePathMap,
+) {
+    if let Err(e) = wakelocks.toggle(kind) {
+        warn(&format!("Could not change the manual wakelock:\n\n{e}"));
+    }
+    tray.set_manual_wakelocks(
+        wakelocks.is_held(WakelockKind::Display),
+        wakelocks.is_held(WakelockKind::Standby),
+    );
+    tray.apply(poll(paths));
 }
 
 fn toggle_autostart(tray: &mut Tray) {

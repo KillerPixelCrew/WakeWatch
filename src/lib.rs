@@ -11,6 +11,7 @@ pub mod power;
 pub mod single;
 pub mod ticker;
 pub mod tray;
+pub mod wakelock;
 
 use devpath::DevicePathMap;
 use model::Snapshot;

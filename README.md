@@ -22,6 +22,9 @@ Hover for a summary. Right-click to see exactly what holds each lock, with
 process paths, PIDs and reason strings — duplicates collapsed, so an app
 holding thirty identical locks shows as `steam.exe ×30` rather than thirty rows.
 
+The right-click menu can also manually keep the display awake or prevent
+standby. Each option stays active until it is unchecked or WakeWatch exits.
+
 Roughly 320 KB, ~11 MB resident, one syscall per second (~65 µs).
 
 ## Requires administrator

@@ -12,6 +12,8 @@ use crate::model::{LockLevel, ModeGroup, Snapshot};
 
 pub const ID_REFRESH: &str = "wakewatch.refresh";
 pub const ID_AUTOSTART: &str = "wakewatch.autostart";
+pub const ID_DISPLAY_WAKELOCK: &str = "wakewatch.wakelock.display";
+pub const ID_STANDBY_WAKELOCK: &str = "wakewatch.wakelock.standby";
 pub const ID_EXIT: &str = "wakewatch.exit";
 
 /// Holders listed per mode before collapsing the remainder.
@@ -29,6 +31,8 @@ pub struct Tray {
     shown: Option<Snapshot>,
     autostart_on: bool,
     autostart_checked_at: Instant,
+    display_wakelock_on: bool,
+    standby_wakelock_on: bool,
     exe: PathBuf,
 }
 
@@ -43,7 +47,7 @@ impl Tray {
         let tray = TrayIconBuilder::new()
             .with_icon(icons.for_level(LockLevel::Unknown))
             .with_tooltip("WakeWatch")
-            .with_menu(Box::new(build_menu(&initial, autostart_on)?))
+            .with_menu(Box::new(build_menu(&initial, autostart_on, false, false)?))
             .build()?;
 
         Ok(Tray {
@@ -52,6 +56,8 @@ impl Tray {
             shown: None,
             autostart_on,
             autostart_checked_at: Instant::now(),
+            display_wakelock_on: false,
+            standby_wakelock_on: false,
             exe,
         })
     }
@@ -77,21 +83,29 @@ impl Tray {
             .tray
             .set_icon(Some(self.icons.for_level(snapshot.level)));
         let _ = self.tray.set_tooltip(Some(snapshot.tooltip()));
-        if let Ok(menu) = build_menu(&snapshot, self.autostart_on) {
+        if let Ok(menu) = build_menu(
+            &snapshot,
+            self.autostart_on,
+            self.display_wakelock_on,
+            self.standby_wakelock_on,
+        ) {
             self.tray.set_menu(Some(Box::new(menu)));
         }
         self.shown = Some(snapshot);
+    }
+
+    /// Updates the manual-wakelock checkmarks from the actual held requests.
+    pub fn set_manual_wakelocks(&mut self, display_on: bool, standby_on: bool) {
+        self.display_wakelock_on = display_on;
+        self.standby_wakelock_on = standby_on;
+        self.rebuild_menu();
     }
 
     /// Re-reads the scheduled task state and rebuilds the menu to match.
     pub fn refresh_autostart(&mut self) {
         self.autostart_on = autostart::is_enabled();
         self.autostart_checked_at = Instant::now();
-        if let Some(shown) = self.shown.clone()
-            && let Ok(menu) = build_menu(&shown, self.autostart_on)
-        {
-            self.tray.set_menu(Some(Box::new(menu)));
-        }
+        self.rebuild_menu();
     }
 
     fn reread_autostart_if_stale(&mut self) {
@@ -100,9 +114,27 @@ impl Tray {
             self.autostart_checked_at = Instant::now();
         }
     }
+
+    fn rebuild_menu(&mut self) {
+        if let Some(shown) = self.shown.as_ref()
+            && let Ok(menu) = build_menu(
+                shown,
+                self.autostart_on,
+                self.display_wakelock_on,
+                self.standby_wakelock_on,
+            )
+        {
+            self.tray.set_menu(Some(Box::new(menu)));
+        }
+    }
 }
 
-fn build_menu(snapshot: &Snapshot, autostart_on: bool) -> Result<Menu, tray_icon::menu::Error> {
+fn build_menu(
+    snapshot: &Snapshot,
+    autostart_on: bool,
+    display_wakelock_on: bool,
+    standby_wakelock_on: bool,
+) -> Result<Menu, tray_icon::menu::Error> {
     let menu = Menu::new();
 
     match snapshot.level {
@@ -124,6 +156,22 @@ fn build_menu(snapshot: &Snapshot, autostart_on: bool) -> Result<Menu, tray_icon
         }
     }
 
+    menu.append(&PredefinedMenuItem::separator())?;
+    menu.append(&disabled("Manual wakelocks"))?;
+    menu.append(&CheckMenuItem::with_id(
+        ID_DISPLAY_WAKELOCK,
+        "Keep display awake",
+        true,
+        display_wakelock_on,
+        None,
+    ))?;
+    menu.append(&CheckMenuItem::with_id(
+        ID_STANDBY_WAKELOCK,
+        "Prevent standby",
+        true,
+        standby_wakelock_on,
+        None,
+    ))?;
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&MenuItem::with_id(ID_REFRESH, "Refresh now", true, None))?;
     menu.append(&CheckMenuItem::with_id(

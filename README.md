@@ -1,6 +1,6 @@
 # WakeWatch
 
-[![CI](https://github.com/NightHammer1000/wakewatch/actions/workflows/ci.yml/badge.svg)](https://github.com/NightHammer1000/wakewatch/actions/workflows/ci.yml)
+[![CI](https://github.com/KillerPixelCrew/WakeWatch/actions/workflows/ci.yml/badge.svg)](https://github.com/KillerPixelCrew/WakeWatch/actions/workflows/ci.yml)
 
 A tiny Windows tray indicator that tells you, at a glance, whether anything is
 holding your display or system awake.
@@ -44,7 +44,7 @@ Download `wakewatch.exe` from the [releases page][releases], put it somewhere
 permanent, run it, and enable **Start with Windows** from the menu. Each
 release ships a `wakewatch.exe.sha256` next to the binary.
 
-[releases]: https://github.com/NightHammer1000/wakewatch/releases
+[releases]: https://github.com/KillerPixelCrew/WakeWatch/releases
 
 The binary is unsigned, so SmartScreen will warn on first run.
 
